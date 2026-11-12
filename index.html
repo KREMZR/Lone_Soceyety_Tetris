@@ -374,7 +374,8 @@ const randChar = () => CODE_CHARS[(Math.random() * CODE_CHARS.length) | 0];
 
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { /* storage blocked */ } }
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) { /* storage blocked */ } },
+  remove(k) { try { localStorage.removeItem(k); } catch (e) { /* storage blocked */ } }
 };
 
 /* =========================================================
@@ -700,7 +701,69 @@ function spawnClearParticles() {
 /* =========================================================
    GAME FLOW
    ========================================================= */
+/* ---------- save / restore (survives the page being reloaded,
+   e.g. when a home-screen shortcut reopens the game) ---------- */
+const SAVE_KEY = 'lt_save';
+function saveGame() {
+  if (G.state !== 'playing' && G.state !== 'paused') return;
+  let board = G.board.map(r => r.slice());
+  let cur = G.cur ? { type: G.cur.type, rot: G.cur.rot, x: G.cur.x, y: G.cur.y } : null;
+  if (G.clearing) {            // finish the pending line clear in the saved copy
+    board = board.filter((_, r) => !G.clearing.rows.includes(r));
+    while (board.length < TOTAL) board.unshift(emptyRow());
+    cur = null;                // next piece is spawned on restore
+  }
+  store.set(SAVE_KEY, JSON.stringify({
+    v: 1, board, cur, hold: G.hold, canHold: G.canHold, queue: G.queue, bag: G.bag,
+    score: G.score, lines: G.lines, level: G.level,
+  }));
+}
+function clearSave() { store.remove(SAVE_KEY); }
+function loadSave() {
+  try {
+    const d = JSON.parse(store.get(SAVE_KEY, 'null'));
+    if (!d || d.v !== 1 || !Array.isArray(d.board) || d.board.length !== TOTAL) return null;
+    if (!d.board.every(r => Array.isArray(r) && r.length === COLS)) return null;
+    return d;
+  } catch (e) { return null; }
+}
+function restoreGame(d) {
+  const isType = t => TYPES.includes(t);
+  hideOverlays();
+  G.board = d.board.map(r => r.map(c => (isType(c) ? c : null)));
+  Object.assign(G, {
+    hold: isType(d.hold) ? d.hold : null, canHold: d.canHold !== false,
+    queue: (Array.isArray(d.queue) ? d.queue : []).filter(isType),
+    bag: (Array.isArray(d.bag) ? d.bag : []).filter(isType),
+    score: Math.max(0, d.score | 0), lines: Math.max(0, d.lines | 0),
+    clearing: null, softKey: false, softTouch: false, particles: [], cur: null,
+  });
+  G.level = Math.floor(G.lines / 10) + 1;
+  kb.dir = 0;
+  gesture = null;
+  showScreen('game');
+  layout();
+  updateHud();
+  G.state = 'paused';
+  const c = d.cur;
+  if (c && isType(c.type) && [0, 1, 2, 3].includes(c.rot) && Number.isInteger(c.x) && Number.isInteger(c.y)
+      && !collide(c.type, c.rot, c.x, c.y)) {
+    G.cur = { type: c.type, rot: c.rot, x: c.x, y: c.y };
+    G.pieceId++;
+    resetLockState();
+    fillQueue();
+    drawSide();
+  } else {
+    const canHold = G.canHold;
+    spawnNext();
+    if (G.state === 'over') return;
+    G.canHold = canHold; drawSide();
+  }
+  $('pauseOverlay').classList.add('show');
+}
+
 function startGame() {
+  clearSave();
   hideOverlays();
   resetBoard();
   Object.assign(G, {
@@ -721,6 +784,7 @@ function pauseGame() {
   G.state = 'paused';
   G.softKey = G.softTouch = false; kb.dir = 0; gesture = null;
   $('pauseOverlay').classList.add('show');
+  saveGame();
 }
 function resumeGame() {
   if (G.state !== 'paused') return;
@@ -732,6 +796,7 @@ function resumeGame() {
 function gameOver() {
   if (G.state === 'over') return;
   G.state = 'over';
+  clearSave();
   G.overTime = performance.now();
   G.softKey = G.softTouch = false; kb.dir = 0; gesture = null;
   const isBest = G.score > G.best;
@@ -748,6 +813,7 @@ function gameOver() {
 }
 
 function toMenu() {
+  clearSave();
   hideOverlays();
   G.state = 'menu';
   showScreen('menu');
@@ -1277,7 +1343,10 @@ onTap('btnAgain', () => { Sound.click(); startGame(); });
 onTap('btnOverMenu', () => { Sound.click(); toMenu(); });
 $('howOverlay').addEventListener('click', e => { if (e.target === $('howOverlay')) $('howOverlay').classList.remove('show'); });
 
-document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); else last = performance.now(); });
+function leaving() { pauseGame(); saveGame(); }
+document.addEventListener('visibilitychange', () => { if (document.hidden) leaving(); else last = performance.now(); });
+window.addEventListener('pagehide', leaving);
+window.addEventListener('freeze', leaving);
 window.addEventListener('blur', () => pauseGame());
 
 let resizeT = 0;
@@ -1349,7 +1418,8 @@ updateSoundUI();
 resetBoard();
 rainResize();
 layout();
-runMenuIntro(true);
+const saved = loadSave();
+if (saved) restoreGame(saved); else runMenuIntro(true);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (sprites.I) { buildSprites(); drawSide(); } });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
 
