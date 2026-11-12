@@ -26,3 +26,7 @@ Best score and the mute setting are saved in localStorage.
 
 ## Play online
 Hosted on GitHub Pages: https://kremzr.github.io/Lone_Soceyety_Tetris/
+
+## Install as an app
+On Android Chrome open the link, tap ⋮ → **Install app** (or **Add to Home screen** → Install). It opens full screen, portrait, and also works offline.
+On iPhone Safari: Share → **Add to Home Screen**.
