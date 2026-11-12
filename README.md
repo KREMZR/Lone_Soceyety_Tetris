@@ -23,3 +23,6 @@ Keyboard: arrows move, Up / X rotate, Z rotate counter-clockwise, Down soft drop
 10×20 board, 7-bag randomizer, ghost piece, next-3 preview, hold.
 Scoring: 1 / 2 / 3 / 4 lines = 100 / 300 / 500 / 800 × level. New level every 10 lines, and the blocks fall faster.
 Best score and the mute setting are saved in localStorage.
+
+## Play online
+Hosted on GitHub Pages: https://kremzr.github.io/Lone_Soceyety_Tetris/
