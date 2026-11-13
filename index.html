@@ -299,7 +299,7 @@
       <ul>
         <li><b>TAP board</b><span>Rotate clockwise</span></li>
         <li><b>SWIPE ← / →</b><span>Move 1 column. Longer swipe = more columns</span></li>
-        <li><b>SWIPE ↓ &amp; hold</b><span>Soft drop</span></li>
+        <li><b>DRAG ↓</b><span>Soft drop: the piece follows your finger, 1 row per cell</span></li>
         <li><b>FLICK ↓ fast</b><span>Hard drop (instant)</span></li>
         <li><b>TAP HOLD box</b><span>Store piece / swap. Once per drop</span></li>
         <li><b>II button</b><span>Pause</span></li>
@@ -367,7 +367,7 @@ const CLEAR_MS = 380, FLASH_MS = 140;
 const SOFT_MS = 40;              // soft drop gravity (ms per row)
 const DAS = 170, ARR = 50;       // keyboard auto-repeat
 const TAP_DIST = 20, TAP_TIME = 300;
-const FLICK_VEL = 1.1;           // px per ms
+const FLICK_VEL = 1.3;           // px per ms: only a real flick hard-drops
 const CODE_CHARS = '0101010123456789ABCDEF<>/\\{}[]#$%&*+=;:|ΣΔΨΩλπ';
 const LINE_POINTS = [0, 100, 300, 500, 800];
 const LINE_NAMES = ['', 'SINGLE', 'DOUBLE', 'TRIPLE', 'QUAD'];
@@ -1285,8 +1285,9 @@ playfield.addEventListener('pointermove', e => {
       if (tryMove(s, 0)) g.cols += s; else { g.cols = target; break; }
     }
   } else if (g.axis === 'down') {
-    G.softTouch = true;
-    const step = Math.max(14, cellSize * 0.8);
+    // Soft drop follows the finger 1:1 (one row per cell of travel), no auto speed-up,
+    // so the piece can be lowered slowly and placed precisely.
+    const step = Math.max(18, cellSize);
     const target = dy < TAP_DIST ? 0 : 1 + Math.floor((dy - TAP_DIST) / step);
     while (g.rows < target) {
       if (tryMove(0, 1)) g.rows++; else { g.rows = target; break; }
@@ -1309,7 +1310,7 @@ function endGesture(e, cancelled) {
     // release velocity over the last ~110ms (0 if the finger paused before lifting)
     const s = g.samples.find(q => now - q.t <= 110);
     const v = s ? (e.clientY - s.y) / Math.max(8, now - s.t) : 0;
-    if ((v >= FLICK_VEL && dy > 45) || (dt < 220 && dy > 70)) hardDrop();
+    if (v >= FLICK_VEL && dy > 50) hardDrop();
   }
 }
 playfield.addEventListener('pointerup', e => endGesture(e, false));

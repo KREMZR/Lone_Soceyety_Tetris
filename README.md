@@ -13,7 +13,7 @@ For best results on a phone, use "Add to Home Screen".
 |---|---|
 | Tap board | Rotate clockwise (with wall kicks) |
 | Swipe left / right | Move 1 column (longer swipe = more columns) |
-| Swipe down & hold | Soft drop |
+| Drag down | Soft drop (piece follows your finger, 1 row per cell) |
 | Fast flick down | Hard drop |
 | Tap HOLD box | Hold / swap piece (once per drop) |
 
